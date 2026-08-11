@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>야나두 AI English</title>
+  <meta name="description" content="게이미피케이션 기반 AI 영어 학습 앱 - 야나두 AI English 프로토타입" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { nunito: ['Nunito', 'sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .phone-frame {
+      width: 390px;
+      height: 844px;
+      background: #fff;
+      border-radius: 50px;
+      border: 10px solid #1a1a1a;
+      box-shadow: 0 0 0 2px #333, 0 40px 80px rgba(0,0,0,0.6);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .phone-status-bar {
+      height: 36px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      flex-shrink: 0;
+    }
+    .phone-di {
+      width: 80px; height: 22px;
+      background: #1a1a1a;
+      border-radius: 999px;
+      position: absolute;
+      top: 7px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+    .phone-status-time { font-size: 12px; font-weight: 900; color: #333; }
+    .phone-status-icons { font-size: 11px; color: #333; font-weight: 700; }
+    .phone-inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #fff;
+      border-radius: 40px;
+    }
+    @media (max-width: 768px) {
+      body { background: #fff; align-items: stretch; justify-content: flex-start; overflow: hidden; margin: 0; padding: 0; height: 100dvh; width: 100vw; }
+      .phone-frame { width: 100%; height: 100%; border-radius: 0; border: none; box-shadow: none; margin: 0; padding: 0; }
+      .phone-di { display: none; }
+      .phone-status-bar { display: none; }
+      .phone-inner { border-radius: 0; height: 100%; }
+    }
+    .screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .screen.active { display: flex; }
+    .btn-3d {
+      border-radius: 16px; font-weight: 800;
+      font-family: 'Nunito', sans-serif;
+      border: none; cursor: pointer;
+      transition: transform 0.08s, box-shadow 0.08s;
+      position: relative; top: 0;
+    }
+    .btn-3d:active { transform: translateY(3px); box-shadow: none !important; }
+    .btn-green  { background:#8ecf9c; box-shadow: 0 5px 0 #5da870; color:#fff; }
+    .btn-blue   { background:#8ec5fc; box-shadow: 0 5px 0 #5a9de0; color:#fff; }
+    .btn-orange { background:#ffb347; box-shadow: 0 5px 0 #e0922a; color:#fff; }
+    .btn-red    { background:#ff8a80; box-shadow: 0 5px 0 #d95f5f; color:#fff; }
+    /* ── Mario-style path map ── */
+    .mario-map {
+      position: relative;
+      width: 100%;
+      padding: 16px 8px 24px;
+    }
+    .map-row {
+      display: flex;
+      align-items: center;
+      position: relative;
+      margin-bottom: 0;
+    }
+    .map-row.reverse { flex-direction: row-reverse; }
+    .stage-node {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; cursor: pointer; flex-shrink: 0;
+      position: relative;
+      transition: transform 0.12s;
+      border: 4px solid rgba(255,255,255,0.7);
+      z-index: 2;
+    }
+    .stage-node:active:not(.locked) { transform: scale(0.88); }
+    .stage-node.locked { filter: grayscale(1) brightness(0.72); cursor: default; }
+    .stage-node.current {
+      animation: nodeGlow 1.8s ease-in-out infinite;
+    }
+    @keyframes nodeGlow {
+      0%,100% { box-shadow: 0 6px 0 var(--shadow), 0 0 0 0 rgba(142,207,156,0.5); }
+      50%      { box-shadow: 0 6px 0 var(--shadow), 0 0 0 10px rgba(142,207,156,0.0); }
+    }
+    .stage-label {
+      position: absolute;
+      top: -36px; left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 3;
+    }
+    .stage-label-inner {
+      background: #fff;
+      border: 2px solid #d0d0d0;
+      border-radius: 8px;
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 900;
+      color: #555;
+      box-shadow: 0 2px 0 #bbb;
+      position: relative;
+      white-space: nowrap;
+    }
+    .stage-label-inner::after {
+      content: '';
+      position: absolute;
+      bottom: -7px; left: 50%;
+      transform: translateX(-50%);
+      border: 4px solid transparent;
+      border-top-color: #bbb;
+    }
+    .stage-label-inner::before {
+      content: '';
+      position: absolute;
+      bottom: -5px; left: 50%;
+      transform: translateX(-50%);
+      border: 4px solid transparent;
+      border-top-color: #fff;
+      z-index: 1;
+    }
+    .map-connector {
+      flex: 1;
+      height: 10px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      z-index: 1;
+    }
+    .map-connector-line {
+      width: 100%; height: 10px;
+      border-radius: 5px;
+      background: repeating-linear-gradient(
+        90deg, #c8e6c9 0px, #c8e6c9 12px, transparent 12px, transparent 20px
+      );
+    }
+    .map-connector-line.done {
+      background: linear-gradient(90deg, #5da870, #8ecf9c);
+    }
+    .map-connector-line.locked {
+      background: repeating-linear-gradient(
+        90deg, #ddd 0px, #ddd 10px, transparent 10px, transparent 18px
+      );
+    }
+    .map-turn {
+      width: 100%; height: 60px;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .map-turn-line {
+      position: absolute;
+      border-radius: 5px;
+      background: #c8e6c9;
+    }
+    .map-turn-line.locked { background: #ddd; }
+    .map-turn-line.done { background: linear-gradient(180deg, #5da870, #8ecf9c); }
+    /* Character marker */
+    .halmeoni-marker {
+      position: absolute;
+      width: 52px; height: 52px;
+      z-index: 10;
+      pointer-events: none;
+      transform: translate(-50%, -100%);
+      transition: left 0.6s ease, top 0.6s ease;
+    }
+    .halmeoni-marker img { width: 100%; height: 100%; object-fit: contain; }
+    /* Done checkmark */
+    .done-check {
+      position: absolute; bottom: -3px; right: -3px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #5da870; border: 2px solid white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: white; font-weight: 900;
+      z-index: 4;
+    }
+    .path-svg { display: none; }
+    .bottom-sheet {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      border-radius: 24px 24px 0 0; padding: 24px;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+      z-index: 200;
+    }
+    .bottom-sheet.open { transform: translateY(0); }
+    .modal-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex; align-items: flex-end;
+      z-index: 150; opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .modal-backdrop.open { opacity: 1; pointer-events: all; }
+    .modal-card {
+      width: 100%; background: #fff;
+      border-radius: 28px 28px 0 0;
+      padding: 28px 24px 36px;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+    }
+    .modal-backdrop.open .modal-card { transform: translateY(0); }
+    .xp-popup {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.5);
+      background: #ffe066; color: #5a4a00;
+      font-size: 13px; font-weight: 900;
+      white-space: nowrap;
+      padding: 7px 16px; border-radius: 999px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      opacity: 0; transition: all 0.4s cubic-bezier(.34,1.56,.64,1);
+      z-index: 300; pointer-events: none;
+    }
+    .xp-popup.show { opacity: 1; transform: translate(-50%, -80%) scale(1); }
+    .video-bg { background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); }
+    
+    @keyframes speakingAnim {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.03) translateY(-2px); }
+      100% { transform: scale(1); }
+    }
+    .speaking {
+      animation: speakingAnim 0.3s ease-in-out infinite;
+    }
+    .transcript-line { animation: slideUp 0.4s ease-out forwards; opacity: 0; }
+    @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .scroll-area { overflow-y: auto; flex:1; }
+    .scroll-area::-webkit-scrollbar { width: 0; }
+    .bottom-nav { flex-shrink: 0; }
+    .badge-item { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .badge-icon { width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:26px; }
+    @keyframes flicker { 0%,100%{transform:scaleY(1) scaleX(1)} 50%{transform:scaleY(1.12) scaleX(0.92)} }
+    @keyframes sway { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg)} }
+    .streak-sprout { display:inline-block; animation:sway 2s ease-in-out infinite; transform-origin: bottom center; }
+    .progress-bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#8ecf9c,#5da870); transition:width 0.5s ease; }
+    .choice-btn {
+      width:100%; padding:14px 16px; border-radius:16px;
+      font-size:16px; font-weight:700; font-family:'Nunito',sans-serif;
+      border:3px solid #e0e0e0; background:#fff; cursor:pointer;
+      text-align:left; transition:all 0.12s;
+      box-shadow:0 4px 0 #ddd; color:#333;
+    }
+    .choice-btn:active { transform:translateY(2px); box-shadow:0 2px 0 #ddd; }
+    .choice-btn.correct { border-color:#8ecf9c; background:#e8f5eb; box-shadow:0 4px 0 #5da870; color:#2e7d32; }
+    .choice-btn.wrong   { border-color:#ff8a80; background:#fff0ef; box-shadow:0 4px 0 #d95f5f; color:#c62828; }
+    .top-bar { flex-shrink:0; }
+    @media (max-width:768px) { .top-bar { padding-top:12px; } }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    @keyframes nodePulse { 0%,100%{box-shadow:0 6px 0 #5da870,0 0 0 6px rgba(142,207,156,0.4)} 50%{box-shadow:0 6px 0 #5da870,0 0 0 10px rgba(142,207,156,0.15)} }
+  </style>
+</head>
+<body>
+<div class="phone-frame" id="app">
+  <!-- Dynamic Island pill (notch-free style) -->
+  <div class="phone-di"></div>
+  <div class="phone-inner" id="phoneInner">
+    <!-- Status bar -->
+    <div class="phone-status-bar" id="phoneStatusBar">
+      <span class="phone-status-time" id="statusTime">9:41</span>
+      <div style="width:80px"></div><!-- spacer for DI -->
+      <span class="phone-status-icons">●●● 🔋</span>
+    </div>
+
+    <!-- TOP BAR -->
+    <div class="top-bar bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100" id="topBar">
+      
+      <!-- Course Icon (US Flag style) -->
+      <div class="flex items-center gap-2">
+        <svg viewBox="0 0 64 48" class="w-8 h-6 rounded-md shadow-sm border border-gray-200 overflow-hidden">
+          <rect width="64" height="48" fill="#fff"/>
+          <rect width="64" height="8" y="0" fill="#E31D1C"/>
+          <rect width="64" height="8" y="16" fill="#E31D1C"/>
+          <rect width="64" height="8" y="32" fill="#E31D1C"/>
+          <rect width="32" height="24" fill="#002B7F"/>
+          <circle cx="8" cy="6" r="1.5" fill="#fff"/><circle cx="16" cy="6" r="1.5" fill="#fff"/><circle cx="24" cy="6" r="1.5" fill="#fff"/>
+          <circle cx="12" cy="12" r="1.5" fill="#fff"/><circle cx="20" cy="12" r="1.5" fill="#fff"/>
+          <circle cx="8" cy="18" r="1.5" fill="#fff"/><circle cx="16" cy="18" r="1.5" fill="#fff"/><circle cx="24" cy="18" r="1.5" fill="#fff"/>
+        </svg>
+        <span class="font-black text-lg text-gray-800 tracking-tight">EN</span>
+      </div>
+
+      <!-- Streak -->
+      <div class="flex items-center gap-1.5 ml-2">
+        <svg viewBox="0 0 24 24" class="w-7 h-7 drop-shadow-sm streak-sprout">
+          <defs>
+            <linearGradient id="sproutGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stop-color="#38ef7d" />
+              <stop offset="100%" stop-color="#11998e" />
+            </linearGradient>
+          </defs>
+          <path d="M12 21v-5c0-3 4-6 8-6c0 3-4 6-8 6v5h-2v-5c0-3-4-6-8-6c0 3 4 6 8 6v5h2z" 
+                fill="url(#sproutGrad)" 
+                stroke="url(#sproutGrad)" 
+                stroke-width="3" 
+                stroke-linejoin="round" />
+        </svg>
+        <span class="font-black text-lg text-emerald-500" id="streakCount">7</span>
+      </div>
+
+      <!-- Battery Energy -->
+      <div class="flex items-center">
+        <div class="relative flex items-center justify-center rounded-[8px] px-2 py-1 shadow-sm" style="background: linear-gradient(135deg, #00E1D9 0%, #5B86E5 50%, #B847FF 100%); min-width: 65px; height: 28px;">
+          <div class="absolute right-[-4px] top-1/2 -translate-y-1/2 w-1.5 h-3.5 rounded-r-sm" style="background: #B847FF;"></div>
+          <svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 text-white mr-1 drop-shadow-md"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <span class="font-black text-sm text-white drop-shadow-md" style="text-shadow: 0px 1px 2px rgba(0,0,0,0.3);" id="xpCount">1,240</span>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- SCREEN: HOME / LEARNING PATH -->
+    <div class="screen active" id="screen-home" style="background:linear-gradient(180deg,#d4edda 0%,#e8f5eb 40%,#c8e8d4 100%);">
+      <div class="scroll-area px-3 pb-6" id="pathScroll">
+        <!-- Section banner -->
+        <div class="pt-4 pb-1 px-2">
+          <div class="bg-white rounded-2xl p-3 mb-3 flex items-center gap-3 shadow-sm border border-gray-100">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl border-2" style="background:#e0f0ff;border-color:#8ec5fc;">📚</div>
+            <div class="flex-1">
+              <div class="font-black text-xs text-gray-400">현재 학습 중</div>
+              <div class="font-black text-sm text-gray-800">Unit 3 · 일상 회화</div>
+              <div class="flex items-center gap-2 mt-1">
+                <div class="flex-1 bg-gray-100 rounded-full h-1.5"><div id="homeProgressFill" class="progress-bar-fill" style="width:0%"></div></div>
+                <span id="homeProgressText" class="text-xs font-bold text-gray-400">0/12 스테이지</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Mario-style world map -->
+        <div class="mario-map" id="marioMap"></div>
+      </div>
+    </div>
+
+    <!-- SCREEN: LESSON -->
+    <div class="screen" id="screen-lesson" style="background:#f7f9ff;">
+      <div class="bg-white px-5 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100 flex-shrink-0" id="lessonTopBar">
+        <button onclick="closelesson()" class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-lg font-bold hover:bg-gray-200">✕</button>
+        <div class="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+          <div class="progress-bar-fill" id="lessonProgress" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="scroll-area px-5 pt-6 pb-4 flex-1 flex flex-col" id="questionArea"></div>
+      <div class="px-5 pb-4 flex flex-col gap-3 flex-shrink-0" id="choicesArea"></div>
+      <div class="bottom-sheet" id="feedbackSheet" style="background:#e8f5eb;">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl text-white font-bold" style="background:#8ecf9c;">✓</div>
+          <div>
+            <div class="font-black text-lg text-green-700">정답입니다! 🎉</div>
+            <div class="text-sm font-semibold text-green-600">훌륭해요!</div>
+          </div>
+        </div>
+        <button class="btn-3d btn-green w-full py-4 text-lg" onclick="nextQuestion()">계속하기</button>
+      </div>
+      <div class="bottom-sheet" id="wrongSheet" style="background:#fff0ef;">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl text-white font-bold" style="background:#ff8a80;">✗</div>
+          <div>
+            <div class="font-black text-lg text-red-600">오답입니다 😢</div>
+            <div class="text-sm font-semibold text-red-400" id="wrongAnswer"></div>
+          </div>
+        </div>
+        <button class="btn-3d btn-red w-full py-4 text-lg" onclick="nextQuestion()">계속하기</button>
+      </div>
+      <div class="xp-popup" id="xpPopup">
+        +10 <svg viewBox="0 0 24 24" fill="currentColor" class="inline w-3.5 h-3.5 text-yellow-600 mb-0.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+    </div>
+
+    <!-- SCREEN: AI TUTOR SELECTION -->
+    <div class="screen" id="screen-tutors" style="background:#f9f9f9;">
+      <div class="scroll-area px-4 pb-6 pt-6">
+        <div class="font-black text-2xl text-gray-800 mb-2">AI 튜터와 회화 연습</div>
+        <div class="text-sm font-bold text-gray-500 mb-6">원하는 튜터와 대화하며 실력을 키워보세요</div>
+        
+        <!-- Premium / Artist Tutors -->
+        <div class="mb-6">
+          <div class="font-bold text-sm text-purple-600 mb-3 flex items-center gap-2">
+            <span>🌟 프리미엄 아티스트 튜터</span>
+            <span class="text-[10px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">NEW</span>
+          </div>
+          <div class="bg-white rounded-3xl p-4 shadow-sm border-2 border-purple-100 flex flex-col gap-4">
+            <div class="flex gap-4">
+              <div class="w-20 h-20 rounded-2xl overflow-hidden shadow-inner flex-shrink-0 border border-gray-100">
+                <img src="./assets/kpop_idol.png" alt="Ji-eun" style="width:100%;height:100%;object-fit:cover;" />
+              </div>
+              <div class="flex-1 flex flex-col justify-center">
+                <div class="font-black text-lg text-gray-800">Ji-eun (지은)</div>
+                <div class="text-xs font-bold text-gray-500 mt-1">K-Pop 아이돌 · 일상 회화 트렌드</div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="prepareCall('voice', 'Ji-eun', 'kpop_idol')" class="flex-1 bg-gray-100 text-gray-700 font-bold text-sm py-3 rounded-xl border-b-2 border-gray-200 active:translate-y-0.5 active:border-b-0 transition-all">📞 음성</button>
+              <button onclick="prepareCall('video', 'Ji-eun', 'kpop_idol')" class="flex-1 bg-purple-500 text-white font-bold text-sm py-3 rounded-xl border-b-2 border-purple-700 shadow-sm active:translate-y-0.5 active:border-b-0 transition-all">📱 화상</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Basic Tutors -->
+        <div>
+          <div class="font-bold text-sm text-gray-500 mb-3">기본 AI 튜터</div>
+          <div class="flex flex-col gap-4">
+            <!-- Elena -->
+            <div class="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col gap-4">
+              <div class="flex gap-4">
+                <div class="w-16 h-16 rounded-2xl overflow-hidden shadow-inner flex-shrink-0 border border-gray-100">
+                  <img src="./assets/ai_tutor.png" alt="Elena" style="width:100%;height:100%;object-fit:cover;" />
+                </div>
+                <div class="flex-1 flex flex-col justify-center">
+                  <div class="font-black text-lg text-gray-800">Elena</div>
+                  <div class="text-xs font-bold text-gray-500 mt-1">정확한 피드백 · 비즈니스 특화</div>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="prepareCall('voice', 'Elena', 'ai_tutor')" class="flex-1 bg-gray-100 text-gray-700 font-bold text-sm py-2.5 rounded-xl border-b-2 border-gray-200 active:translate-y-0.5 active:border-b-0 transition-all">📞 음성</button>
+                <button onclick="prepareCall('video', 'Elena', 'ai_tutor')" class="flex-1 bg-blue-500 text-white font-bold text-sm py-2.5 rounded-xl border-b-2 border-blue-700 shadow-sm active:translate-y-0.5 active:border-b-0 transition-all">📱 화상</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN: AI VOICE CALL -->
+    <div class="screen bg-gray-900" id="screen-voice-call">
+      <div class="flex flex-col h-full relative px-6 py-10">
+        <div class="flex justify-between items-center text-white mb-12">
+          <button onclick="endCall()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-xl">🔽</button>
+          <div class="font-bold text-sm text-gray-300">AI 통화</div>
+          <div class="w-10 h-10"></div>
+        </div>
+        
+        <div class="flex-1 flex flex-col items-center justify-center">
+          <div class="w-32 h-32 rounded-full overflow-hidden shadow-2xl border-4 border-gray-700 mb-6 relative">
+            <img id="voiceCallImg" src="./assets/ai_tutor.png" style="width:100%;height:100%;object-fit:cover;object-position:top;" />
+            <div id="voiceCallPing" class="absolute inset-0 rounded-full border-4 border-green-400 opacity-0 transition-opacity"></div>
+          </div>
+          <div class="text-white font-black text-3xl mb-2" id="voiceCallName">Elena</div>
+          <div class="text-green-400 font-bold text-lg" id="voiceCallTimer">00:00</div>
+        </div>
+        
+        <div class="flex items-center justify-center gap-8 mt-12">
+          <button onclick="toggleVoiceMic()" id="voiceMicBtn" class="w-16 h-16 rounded-full flex items-center justify-center text-2xl bg-white/20 text-white">🎙️</button>
+          <button onclick="endCall()" class="w-20 h-20 rounded-full flex items-center justify-center text-3xl shadow-lg bg-red-500">📵</button>
+          <button class="w-16 h-16 rounded-full flex items-center justify-center text-2xl bg-white/20 text-white">🔊</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN: AI VIDEO CALL -->
+    <div class="screen video-bg" id="screen-video-call">
+      <div class="flex flex-col h-full relative">
+        <div style="padding-top:40px;" class="px-5 pt-3 pb-2 flex items-center justify-between flex-shrink-0">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-green-400" id="callStatusDot" style="display:none;animation:pulse 1s infinite;"></div>
+            <span class="text-white font-bold text-sm" id="callStatusText">AI 튜터 · Elena</span>
+          </div>
+          <div class="bg-white/20 rounded-full px-3 py-1">
+            <span class="text-white font-black text-sm" id="callTimer">00:00</span>
+          </div>
+        </div>
+        <div class="flex-1 relative flex flex-col items-center justify-center mx-4 rounded-3xl overflow-hidden" style="background:#0d1b3e;min-height:0;">
+          <video id="videoCallVid" src="./assets/tutor_sample.mp4" style="width:100%;height:100%;object-fit:cover;object-position:center;display:none;" loop playsinline muted></video>
+          <img id="videoCallImg" src="./assets/ai_tutor.png" alt="AI 튜터" style="width:100%;height:100%;object-fit:cover;object-position:top center;display:block;" />
+          <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/40" id="preCallOverlay">
+            <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-white/50 shadow-xl">
+              <img id="preCallImg" src="./assets/ai_tutor.png" alt="Tutor" style="width:100%;height:100%;object-fit:cover;object-position:top;" />
+            </div>
+            <div class="text-center">
+              <div class="text-white font-black text-xl" id="preCallName">Elena</div>
+              <div class="text-white/70 text-sm font-semibold">AI English Tutor</div>
+            </div>
+            <button class="btn-3d btn-green px-10 py-4 text-lg mt-2" onclick="startCall()">📞 통화 시작</button>
+          </div>
+          <div class="absolute bottom-0 left-0 right-0 p-4" id="transcriptArea" style="display:none;background:linear-gradient(to top,rgba(0,0,0,0.8) 0%,transparent 100%);">
+            <div id="transcriptLines" class="flex flex-col gap-2 max-h-40 overflow-hidden"></div>
+          </div>
+        </div>
+        <div class="px-4 pb-4 pt-3 flex-shrink-0">
+          <div class="flex justify-end mb-3">
+            <div class="w-20 h-28 rounded-2xl bg-slate-700 border-2 border-white/30 flex items-center justify-center text-3xl shadow-lg">👤</div>
+          </div>
+          <div class="flex items-center justify-center gap-5">
+            <button onclick="toggleMic()" id="micBtn" class="w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-white/30 transition" style="background:rgba(255,255,255,0.2);">🎙️</button>
+            <button onclick="endCall()" class="w-16 h-16 rounded-full flex items-center justify-center text-2xl shadow-lg" style="background:#ff8a80;box-shadow:0 5px 0 #d95f5f;">📵</button>
+            <button class="w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2 border-white/30" style="background:rgba(255,255,255,0.2);">💬</button>
+          </div>
+          <div id="preCallControls" class="flex items-center justify-center mt-3">
+            <div class="text-white/50 text-sm font-semibold text-center">통화를 시작하면 AI와 영어로 대화할 수 있어요</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN: PROFILE -->
+    <div class="screen" id="screen-profile" style="background:#f7f5ff;">
+      <div class="scroll-area pb-6">
+        <div class="px-5 pt-6 pb-4 bg-white border-b border-gray-100">
+          <div class="flex items-center gap-4">
+            <div class="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-md border-4 border-white" style="background:linear-gradient(135deg,#c5b3ff,#8ec5fc);">🦸</div>
+            <div>
+              <div class="font-black text-xl text-gray-800">김야나</div>
+              <div class="text-sm font-bold text-gray-400">연속 학습 <span class="text-orange-400 font-black">7일</span> 🔥</div>
+              <div class="flex gap-2 mt-2">
+                <span class="text-xs font-bold px-2 py-1 rounded-full" style="background:#e0f0ff;color:#5a9de0;">🏆 골드 리그</span>
+                <span class="text-xs font-bold px-2 py-1 rounded-full" style="background:#e8f5eb;color:#5da870;">Lv.12</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 mt-4">
+            <div class="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
+              <div class="font-black text-xl" style="color:#8b6fe0;">1,240</div>
+              <div class="text-xs font-bold text-gray-400">총 XP</div>
+            </div>
+            <div class="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
+              <div class="font-black text-xl" style="color:#5da870;">42h</div>
+              <div class="text-xs font-bold text-gray-400">학습 시간</div>
+            </div>
+            <div class="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
+              <div class="font-black text-xl text-orange-400">23</div>
+              <div class="text-xs font-bold text-gray-400">완료 레슨</div>
+            </div>
+          </div>
+        </div>
+        <div class="px-5 py-4">
+          <div class="font-black text-base text-gray-700 mb-3">이번 주 학습 현황</div>
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-end gap-2 h-24 justify-between" id="weeklyChart"></div>
+          </div>
+        </div>
+        <div class="px-5 py-2">
+          <div class="font-black text-base text-gray-700 mb-3">획득한 배지</div>
+          <div class="grid grid-cols-4 gap-3">
+            <div class="badge-item"><div class="badge-icon bg-yellow-100 border-2 border-yellow-300">🏆</div><span class="text-xs font-bold text-gray-500 text-center">첫 레슨</span></div>
+            <div class="badge-item"><div class="badge-icon bg-orange-100 border-2 border-orange-300">🔥</div><span class="text-xs font-bold text-gray-500 text-center">7일 연속</span></div>
+            <div class="badge-item"><div class="badge-icon bg-blue-100 border-2 border-blue-300">💬</div><span class="text-xs font-bold text-gray-500 text-center">첫 AI통화</span></div>
+            <div class="badge-item"><div class="badge-icon bg-green-100 border-2 border-green-300"><svg viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-green-600"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div><span class="text-xs font-bold text-gray-500 text-center">XP 1000</span></div>
+            <div class="badge-item"><div class="badge-icon bg-purple-100 border-2 border-purple-300">🌟</div><span class="text-xs font-bold text-gray-500 text-center">완벽 점수</span></div>
+            <div class="badge-item"><div class="badge-icon bg-pink-100 border-2 border-pink-300">🎯</div><span class="text-xs font-bold text-gray-500 text-center">10연속 정답</span></div>
+            <div class="badge-item" style="opacity:0.4;"><div class="badge-icon bg-gray-100 border-2 border-gray-200">🔒</div><span class="text-xs font-bold text-gray-400 text-center">???</span></div>
+            <div class="badge-item" style="opacity:0.4;"><div class="badge-icon bg-gray-100 border-2 border-gray-200">🔒</div><span class="text-xs font-bold text-gray-400 text-center">???</span></div>
+          </div>
+        </div>
+        <div class="px-5 py-4">
+          <div class="font-black text-base text-gray-700 mb-3">주간 리더보드 🏆</div>
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="leaderboard"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="bottom-nav bg-white border-t border-gray-100 flex items-center justify-around px-2 pt-2 pb-2" id="bottomNav" style="padding-bottom:max(8px,env(safe-area-inset-bottom));">
+      <button onclick="showScreen('home')" class="flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all" id="nav-home">
+        <span class="text-2xl">🗺️</span>
+        <span class="text-xs font-black" id="nav-home-label">학습</span>
+      </button>
+      <button onclick="showScreen('tutors')" class="flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all" id="nav-tutors">
+        <span class="text-2xl">✨</span>
+        <span class="text-xs font-black" id="nav-tutors-label">AI 튜터</span>
+      </button>
+      <button onclick="showScreen('profile')" class="flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all" id="nav-profile">
+        <span class="text-2xl">👤</span>
+        <span class="text-xs font-black" id="nav-profile-label">프로필</span>
+      </button>
+    </div>
+
+    <!-- Node Modal (inside phone-inner for proper clipping) -->
+    <div class="modal-backdrop" id="nodeModal">
+      <div class="modal-card">
+        <div class="flex items-center gap-4 mb-5">
+          <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl" id="modalNodeIcon"></div>
+          <div>
+            <div class="font-black text-xl text-gray-800" id="modalNodeTitle"></div>
+            <div class="text-sm font-bold text-gray-400" id="modalNodeSub"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-sm font-bold text-gray-500 mb-5 bg-gray-50 rounded-2xl p-3">
+          <div class="flex items-center gap-2"><span>⭐</span><span>+20 XP</span></div>
+          <div class="flex items-center gap-2"><span>⏱️</span><span>약 5분</span></div>
+          <div class="flex items-center gap-2"><span>❓</span><span>5문제</span></div>
+        </div>
+        <button class="btn-3d btn-green w-full py-4 text-lg" onclick="startLesson()">시작하기!</button>
+        <button onclick="closeModal()" class="w-full py-3 mt-3 text-gray-400 font-bold text-sm">나중에</button>
+      </div>
+    </div>
+
+    <!-- PREMIUM COST MODAL -->
+    <div class="modal-backdrop" id="premiumCostModal" onclick="if(event.target===this) closePremiumModal()">
+      <div class="modal-card flex flex-col items-center relative">
+        <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center text-3xl mb-4">🌟</div>
+        <div class="font-black text-2xl text-gray-800 mb-2">프리미엄 튜터 이용</div>
+        <div class="text-sm font-bold text-gray-500 mb-6 text-center">Ji-eun 튜터와의 <span id="premiumCallTypeText">음성</span> 통화는<br>에너지가 소모됩니다.</div>
+        
+        <div class="w-full bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 flex justify-between items-center mb-4">
+          <div class="font-black text-gray-700">소모 에너지</div>
+          <div class="font-black text-xl text-yellow-600 flex items-center gap-1"><svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-yellow-500"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> <span id="premiumCostAmount">100</span></div>
+        </div>
+        
+        <div class="text-xs font-bold text-purple-600 bg-purple-50 px-4 py-2 rounded-full mb-6">👑 야나두 프리미엄 구독 시 에너지 무제한!</div>
+        
+        <div class="w-full flex gap-2">
+          <button onclick="closePremiumModal()" class="flex-1 py-3 text-gray-500 font-bold bg-gray-100 rounded-xl">취소</button>
+          <button onclick="confirmPremiumCall()" class="flex-1 py-3 text-white font-bold bg-purple-500 rounded-xl">통화 시작</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const state = {
+  xp:1240, streak:7,
+  currentQ:0, answered:false,
+  callActive:false, callTimerInterval:null, callSeconds:0,
+  micOn:true, transcriptIdx:0, transcriptInterval:null,
+  selectedNode:null
+};
+
+// ── Mario Bros 3 style world map data ──
+const stages = [
+  {id:0,  emoji:'⭐', label:'기초 인사',    sub:'Hello & Goodbye',  color:'#ffe8a3',shadow:'#cca800', done:true},
+  {id:1,  emoji:'💬', label:'자기소개',     sub:'My name is...',     color:'#b3d9ff',shadow:'#5a9de0', done:true},
+  {id:2,  emoji:'🏠', label:'일상 표현',    sub:'Daily Routines',    color:'#d4b3ff',shadow:'#8b6fe0', done:true},
+  {id:3,  emoji:'🍎', label:'음식 주문',    sub:'At a Restaurant',   color:'#ffd6a5',shadow:'#e0922a', done:false, current:true},
+  {id:4,  emoji:'🚌', label:'교통 수단',    sub:'Getting Around',    color:'#b5e8c8',shadow:'#5da870', done:false},
+  {id:5,  emoji:'🛒', label:'쇼핑하기',     sub:'Shopping',          color:'#ffb3c6',shadow:'#d97090', done:false},
+  {id:6,  emoji:'💼', label:'비즈니스',     sub:'Work & Office',     color:'#b3d9ff',shadow:'#5a9de0', done:false, locked:true},
+  {id:7,  emoji:'✈️', label:'여행 영어',    sub:'Travel & Hotel',    color:'#ffe8a3',shadow:'#cca800', done:false, locked:true},
+  {id:8,  emoji:'🎭', label:'감정 표현',    sub:'Feelings',          color:'#d4b3ff',shadow:'#8b6fe0', done:false, locked:true},
+  {id:9,  emoji:'📰', label:'뉴스 읽기',    sub:'News & Media',      color:'#ffd6a5',shadow:'#e0922a', done:false, locked:true},
+  {id:10, emoji:'🎓', label:'고급 회화',    sub:'Advanced Talk',     color:'#b5e8c8',shadow:'#5da870', done:false, locked:true},
+  {id:11, emoji:'🏆', label:'마스터',       sub:'Master Level',      color:'#ffe8a3',shadow:'#cca800', done:false, locked:true},
+];
+
+// Layout: 3 nodes per row, zigzag
+const ROW_SIZE = 3;
+
+function buildPathMap() {
+  const map = document.getElementById('marioMap');
+  if (!map) return;
+  map.innerHTML = '';
+
+  // Split into rows of ROW_SIZE
+  const rows = [];
+  for (let i = 0; i < stages.length; i += ROW_SIZE) {
+    rows.push(stages.slice(i, i + ROW_SIZE));
+  }
+
+  rows.forEach((rowStages, rowIdx) => {
+    const isReverse = rowIdx % 2 === 1;
+    const displayRow = isReverse ? [...rowStages].reverse() : rowStages;
+
+    // Determine connector states between rows
+    const firstInRow = rowStages[0];
+    const lastInRow = rowStages[rowStages.length - 1];
+    const nextRowFirst = rows[rowIdx + 1] ? rows[rowIdx + 1][0] : null;
+    const turnDone = nextRowFirst && (lastInRow.done || lastInRow.current);
+    const turnLocked = nextRowFirst && nextRowFirst.locked;
+
+    // === Horizontal row ===
+    const rowEl = document.createElement('div');
+    rowEl.className = 'map-row' + (isReverse ? ' reverse' : '');
+    rowEl.style.cssText = 'padding: 36px 12px 0; position:relative;';
+
+    displayRow.forEach((stage, sIdx) => {
+      // Connector before this node (except first in row)
+      if (sIdx > 0) {
+        const prevStage = displayRow[sIdx - 1];
+        const connDone = prevStage.done;
+        const connLocked = stage.locked;
+        const conn = document.createElement('div');
+        conn.className = 'map-connector';
+        const line = document.createElement('div');
+        line.className = 'map-connector-line' + (connLocked ? ' locked' : connDone ? ' done' : '');
+        conn.appendChild(line);
+        rowEl.appendChild(conn);
+      }
+
+      // Node
+      const nodeEl = document.createElement('div');
+      nodeEl.className = 'stage-node' + (stage.locked ? ' locked' : '') + (stage.current ? ' current' : '');
+      nodeEl.style.cssText = `background:${stage.color};box-shadow:0 5px 0 ${stage.shadow};--shadow:${stage.shadow};`;
+      nodeEl.innerHTML = `<span style="font-size:22px;">${stage.emoji}</span>`;
+      nodeEl.setAttribute('data-stage-id', stage.id);
+
+      if (stage.done) {
+        const check = document.createElement('div');
+        check.className = 'done-check';
+        check.textContent = '✓';
+        nodeEl.appendChild(check);
+      }
+
+      // Signpost label above node
+      if (!stage.locked) {
+        const lbl = document.createElement('div');
+        lbl.className = 'stage-label';
+        lbl.innerHTML = `<div class="stage-label-inner">${stage.label}</div>`;
+        nodeEl.appendChild(lbl);
+      }
+
+      // Click handler
+      if (!stage.locked) {
+        nodeEl.addEventListener('click', () => openNodeModal(stage));
+      }
+      rowEl.appendChild(nodeEl);
+    });
+
+    map.appendChild(rowEl);
+
+    // === Vertical turn connector ===
+    if (nextRowFirst) {
+      const turnEl = document.createElement('div');
+      turnEl.style.cssText = 'position:relative; height:56px; margin: 0 12px;';
+
+      // The turn comes from the last node in row going down, on correct side
+      const fromRight = !isReverse; // next row starts from left if current ends right
+      const hLineClass = 'map-turn-line' + (turnLocked ? ' locked' : turnDone ? ' done' : '');
+      const vLineClass = 'map-turn-line' + (turnLocked ? ' locked' : turnDone ? ' done' : '');
+
+      // Vertical line down from last node position
+      const nodeW = 60;
+      const gap = 12;
+      const fullW = map.offsetWidth || 340;
+      const innerW = fullW - 24; // minus row padding
+      const connWidth = (innerW - ROW_SIZE * nodeW) / (ROW_SIZE - 1);
+      const lastNodeX = fromRight
+        ? (nodeW + connWidth) * (ROW_SIZE - 1) + nodeW / 2
+        : nodeW / 2;
+
+      // Draw: vertical line from last node, horizontal line to other side
+      const vLine = document.createElement('div');
+      vLine.className = vLineClass;
+      vLine.style.cssText = `width:10px;height:56px;top:0;left:${lastNodeX - 5}px;`;
+      turnEl.appendChild(vLine);
+
+      // Horizontal line at bottom connecting to next row start
+      const nextNodeX = fromRight ? nodeW / 2 : (nodeW + connWidth) * (ROW_SIZE - 1) + nodeW / 2;
+      const hLeft = Math.min(lastNodeX, nextNodeX) - 5;
+      const hRight = Math.max(lastNodeX, nextNodeX) + 5;
+      const hLine = document.createElement('div');
+      hLine.className = hLineClass;
+      hLine.style.cssText = `width:${hRight - hLeft}px;height:10px;bottom:0;left:${hLeft}px;`;
+      turnEl.appendChild(hLine);
+
+      map.appendChild(turnEl);
+    }
+  });
+
+  // Update Progress Bar
+  const totalStages = stages.length;
+  const completedStages = stages.filter(s => s.done).length;
+  const currentProgress = stages.findIndex(s => s.current) + 1; // 1-based index for current stage
+  const displayProgress = Math.max(completedStages, currentProgress > 0 ? currentProgress : 0);
+  const progressPercent = (displayProgress / totalStages) * 100;
+  
+  const progressFill = document.getElementById('homeProgressFill');
+  const progressText = document.getElementById('homeProgressText');
+  if (progressFill) progressFill.style.width = `${progressPercent}%`;
+  if (progressText) progressText.textContent = `${displayProgress}/${totalStages} 스테이지`;
+
+  // Place Halmeoni marker on current node
+  const currentStage = stages.find(s => s.current);
+  if (currentStage) {
+    // We need to find the DOM node for current stage and position marker
+    requestAnimationFrame(() => {
+      const nodeEls = map.querySelectorAll('.stage-node');
+      let targetEl = null;
+      nodeEls.forEach(el => {
+        if (parseInt(el.getAttribute('data-stage-id')) === currentStage.id) targetEl = el;
+      });
+      // Use offset-based positioning relative to marioMap (scroll-independent)
+      function getOffsetRelativeTo(el, ancestor) {
+        let top = 0, left = 0;
+        while (el && el !== ancestor) {
+          top += el.offsetTop;
+          left += el.offsetLeft;
+          el = el.offsetParent;
+        }
+        return { top, left };
+      }
+      const pos = getOffsetRelativeTo(targetEl, map);
+      const marker = document.createElement('div');
+      marker.className = 'halmeoni-marker';
+      // Offset marker to the left of the node so it doesn't block the signpost text
+      marker.style.cssText = `left:${pos.left - 15}px;top:${pos.top + 10}px;`;
+      marker.innerHTML = `<img src="./assets/halmeoni.png" alt="현재 위치" />`;
+      map.appendChild(marker);
+    });
+  }
+}
+
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  const topBar = document.getElementById('topBar');
+  const bottomNav = document.getElementById('bottomNav');
+  const statusBar = document.getElementById('phoneStatusBar');
+  const isLesson = name === 'lesson';
+  const isVideoCall = name === 'video-call';
+  const isVoiceCall = name === 'voice-call';
+  const isTutors = name === 'tutors';
+  
+  topBar.style.display = (isLesson || isVideoCall || isVoiceCall) ? 'none' : 'flex';
+  bottomNav.style.display = (isLesson || isVideoCall || isVoiceCall) ? 'none' : 'flex';
+  
+  // Status bar: hide on calls (full-screen dark), show elsewhere
+  if (statusBar) statusBar.style.display = (isVideoCall || isVoiceCall) ? 'none' : 'flex';
+  
+  ['home','tutors','profile'].forEach(tab => {
+    const lbl = document.getElementById('nav-' + tab + '-label');
+    const btn = document.getElementById('nav-' + tab);
+    if (!btn) return;
+    if (tab === name || (tab === 'tutors' && (isVideoCall || isVoiceCall))) { 
+      btn.style.background='#e8f5eb'; lbl.style.color='#5da870'; 
+    }
+    else { btn.style.background='transparent'; lbl.style.color='#aaa'; }
+  });
+}
+
+function openNodeModal(node) {
+
+  state.selectedNode = node;
+  document.getElementById('modalNodeIcon').textContent = node.emoji;
+  document.getElementById('modalNodeIcon').style.background = node.color + '55';
+  document.getElementById('modalNodeTitle').textContent = node.label;
+  document.getElementById('modalNodeSub').textContent = node.sub;
+  document.getElementById('nodeModal').classList.add('open');
+}
+function closeModal() { document.getElementById('nodeModal').classList.remove('open'); }
+document.getElementById('nodeModal').addEventListener('click', e => { if(e.target===document.getElementById('nodeModal')) closeModal(); });
+
+const questions = [
+  {prompt:'[발음 연습] 다음 문장을 소리 내어 읽어보세요:',sentence:'I would like to order a cup of coffee.',choices:['🎙️ 길게 눌러 말하기 (시뮬레이션)','I want to eat a cup of coffee.','Please give me a coffee drink.','Can I have one coffee order?'],correct:0,explain:'정답: 발음 연습 모드입니다. I would like to order a cup of coffee.',source:'출처: 실전 스피킹 부스터'},
+  {prompt:'[단어 조립] 빈칸에 알맞은 단어를 순서대로 고르세요:',sentence:'Could you _____ me the _____, please?',choices:['bring / menu','take / list','give / food','show / map'],correct:0,explain:'정답: bring / menu (메뉴를 가져다주시겠어요?)',source:'출처: 야나두 패턴 회화'},
+  {prompt:'[상황 롤플레이] 웨이터가 "Are you ready to order?" 라고 물었습니다. 적절한 대답은?',sentence:"웨이터의 질문에 대답하기",choices:["I'll have the pasta with extra cheese.",'No, I am not ready.','Where is the restroom?','Check, please.'],correct:0,explain:"정답: I'll have the pasta with extra cheese. (치즈를 추가한 파스타로 할게요.)",source:'출처: K-Pop 아이돌과 식당 가기'},
+  {prompt:'[어휘 퀴즈] 빈칸에 알맞은 표현을 고르세요:',sentence:'Is there a(an) _____ charge for takeout?',choices:['additional','extra','more','plus'],correct:1,explain:'정답: extra (추가적인)',source:'출처: 비즈니스 출장 완벽 대비'},
+  {prompt:'[번역] 다음 문장을 영어로 자연스럽게 번역하세요:',sentence:'계산서 부탁드립니다.',choices:['Check, please.','Bill me now.','Pay the money.','Receipt wanted.'],correct:0,explain:'정답: Check, please.',source:'출처: 핵심 생존 영어 100선'},
+];
+
+function startLesson() {
+  closeModal();
+  state.currentQ = 0;
+  state.answered = false;
+  showScreen('lesson');
+  renderQuestion();
+}
+function closelesson() {
+  showScreen('home');
+  buildPathMap();   // refresh map with updated stage data
+  document.getElementById('feedbackSheet').classList.remove('open');
+  document.getElementById('wrongSheet').classList.remove('open');
+}
+
+// Called when a lesson is fully completed — advances stage progress
+function completeCurrentStage() {
+  const node = state.selectedNode;
+  if (!node) return;
+  const idx = stages.findIndex(s => s.id === node.id);
+  if (idx < 0) return;
+
+  // Mark completed stage as done, no longer current
+  stages[idx].done = true;
+  stages[idx].current = false;
+
+  // Advance to next stage
+  const nextIdx = idx + 1;
+  if (nextIdx < stages.length) {
+    stages[nextIdx].locked = false;
+    stages[nextIdx].current = true;
+    // Also update selectedNode to next for UX consistency
+    state.selectedNode = stages[nextIdx];
+  }
+}
+function renderQuestion() {
+  const q = questions[state.currentQ];
+  document.getElementById('lessonProgress').style.width = (state.currentQ/questions.length*100)+'%';
+  
+  // Render prompt and sentence
+  let qHtml = `
+    <div class="mb-2"><span class="text-xs font-black text-gray-400 uppercase tracking-wide">🔄 번역 / 빈칸</span></div>
+    <div class="font-black text-lg text-gray-700 mb-4 leading-relaxed">${q.prompt}</div>
+    <div class="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100 mb-4">
+      <p class="font-black text-xl text-gray-800 leading-relaxed text-center">${q.sentence}</p>
+    </div>
+  `;
+  
+  // Render source if available, right-aligned just above choices
+  if (q.source) {
+    qHtml += `<div class="text-right text-xs font-bold text-gray-400 mb-2">${q.source}</div>`;
+  }
+  
+  document.getElementById('questionArea').innerHTML = qHtml;
+
+  document.getElementById('choicesArea').innerHTML = q.choices.map((c,i) =>
+    `<button class="choice-btn" id="choice-${i}" onclick="selectChoice(${i})">${c}</button>`
+  ).join('');
+  state.answered = false;
+  document.getElementById('feedbackSheet').classList.remove('open');
+  document.getElementById('wrongSheet').classList.remove('open');
+}
+function selectChoice(idx) {
+  if(state.answered) return;
+  state.answered = true;
+  const q = questions[state.currentQ];
+  const correct = q.correct === idx;
+  q.choices.forEach((_,i) => {
+    const btn = document.getElementById('choice-'+i);
+    if(i===idx) btn.classList.add(correct?'correct':'wrong');
+    if(!correct && i===q.correct) btn.classList.add('correct');
+  });
+  if(correct) {
+    document.getElementById('feedbackSheet').classList.add('open');
+    const popup = document.getElementById('xpPopup');
+    popup.classList.add('show');
+    setTimeout(()=>popup.classList.remove('show'),1500);
+    state.xp += 10;
+    document.getElementById('xpCount').textContent = state.xp.toLocaleString();
+  } else {
+    document.getElementById('wrongAnswer').textContent = q.explain;
+    document.getElementById('wrongSheet').classList.add('open');
+  }
+}
+function nextQuestion() {
+  document.getElementById('feedbackSheet').classList.remove('open');
+  document.getElementById('wrongSheet').classList.remove('open');
+  state.currentQ++;
+  if(state.currentQ >= questions.length) {
+    // ── Lesson complete: advance stage progress ──
+    completeCurrentStage();
+    const nextStage = stages.find(s => s.current);
+    const nextLabel = nextStage ? nextStage.label : '다음 스테이지';
+    document.getElementById('questionArea').innerHTML = `
+      <div class="flex flex-col items-center justify-center flex-1 text-center py-8">
+        <div style="font-size:72px;margin-bottom:16px;">🎉</div>
+        <div class="font-black text-2xl text-gray-800 mb-2">레슨 완료!</div>
+        <div class="text-gray-500 font-bold mb-6">훌륭하게 마쳤어요!</div>
+        <div class="flex gap-4 mb-8">
+          <div class="bg-yellow-50 rounded-2xl p-4 border-2 border-yellow-200 text-center">
+            <div class="font-black text-2xl text-yellow-600">+50 XP</div>
+            <div class="text-xs font-bold text-gray-400">획득 XP</div>
+          </div>
+          <div class="bg-green-50 rounded-2xl p-4 border-2 border-green-200 text-center">
+            <div class="font-black text-2xl text-green-600">5/5</div>
+            <div class="text-xs font-bold text-gray-400">완료 문제</div>
+          </div>
+        </div>
+        ${nextStage ? `<div class="text-sm font-bold text-green-600 bg-green-50 px-4 py-2 rounded-full border border-green-200">🔓 새 스테이지 해제: ${nextLabel}</div>` : ''}
+      </div>
+    `;
+    document.getElementById('choicesArea').innerHTML = `<button class="btn-3d btn-green w-full py-4 text-lg" onclick="closelesson()">홈으로 돌아가기</button>`;
+    document.getElementById('lessonProgress').style.width = '100%';
+    state.xp += 50;
+    document.getElementById('xpCount').textContent = state.xp.toLocaleString();
+  } else {
+    setTimeout(()=>renderQuestion(), 300);
+  }
+}
+
+const fakeTranscriptsBasic = [
+  {who:'AI',text:"Hi! Great to see you. Shall we practice ordering at a restaurant today?"},
+  {who:'나',text:"Yes, I'd like to practice that."},
+  {who:'AI',text:"Perfect! Imagine you're at a nice restaurant. What would you say to the waiter first?"},
+  {who:'나',text:"Excuse me, could I see the menu please?"},
+  {who:'AI',text:"Excellent! That's very polite and natural. Now, what would you like to order?"},
+  {who:'나',text:"I would like to have the pasta, please."},
+  {who:'AI',text:"Great job! You're doing really well. Let's try asking for the check now."},
+  {who:'나',text:"Check, please!"},
+  {who:'AI',text:"Perfect! You're a natural. Keep it up! 🌟"},
+];
+
+const fakeTranscriptsPremium = [
+  {who:'AI',text:"Hi~ How have you been?~ 😊"},
+  {who:'나',text:"I've been good! Just busy with work."},
+  {who:'AI',text:"What have you been up to? Anything fun?~"},
+  {who:'나',text:"Not much, I just stayed home and watched movies."},
+  {who:'AI',text:"Ah, I see! I miss you so much~ We should hang out soon! 💕"},
+];
+
+let activeCallType = null;
+let activeTutorName = '';
+let activeTutorImg = '';
+
+function prepareCall(type, name, imgName) {
+  if (imgName === 'kpop_idol') {
+    const cost = type === 'voice' ? 100 : 200;
+    document.getElementById('premiumCallTypeText').textContent = type === 'voice' ? '음성' : '화상';
+    document.getElementById('premiumCostAmount').textContent = cost;
+    state.pendingPremiumCall = { type, name, imgName, cost };
+    document.getElementById('premiumCostModal').classList.add('open');
+  } else {
+    executePrepareCall(type, name, imgName);
+  }
+}
+
+function closePremiumModal() {
+  document.getElementById('premiumCostModal').classList.remove('open');
+  state.pendingPremiumCall = null;
+}
+
+function confirmPremiumCall() {
+  if (state.pendingPremiumCall) {
+    if (state.xp < state.pendingPremiumCall.cost) {
+      alert("에너지가 부족합니다. 프리미엄 구독을 추천합니다!");
+      return;
+    }
+    state.xp -= state.pendingPremiumCall.cost;
+    document.getElementById('xpCount').textContent = state.xp.toLocaleString();
+    
+    const callData = state.pendingPremiumCall;
+    closePremiumModal();
+    executePrepareCall(callData.type, callData.name, callData.imgName);
+  }
+}
+
+function executePrepareCall(type, name, imgName) {
+  activeCallType = type;
+  activeTutorName = name;
+  activeTutorImg = `./assets/${imgName}.png`;
+  
+  if (type === 'voice') {
+    document.getElementById('voiceCallImg').src = activeTutorImg;
+    document.getElementById('voiceCallName').textContent = name;
+    document.getElementById('voiceCallTimer').textContent = '통화 연결 중...';
+    document.getElementById('voiceCallPing').style.opacity = '1';
+    showScreen('voice-call');
+    setTimeout(startCall, 1500); // Auto-start voice call after 1.5s
+  } else {
+    if (imgName === 'kpop_idol') {
+      document.getElementById('videoCallVid').style.display = 'block';
+      document.getElementById('videoCallImg').style.display = 'none';
+      document.getElementById('videoCallVid').src = './assets/tutor_sample.mp4';
+    } else if (imgName === 'ai_tutor') {
+      document.getElementById('videoCallVid').style.display = 'block';
+      document.getElementById('videoCallImg').style.display = 'none';
+      document.getElementById('videoCallVid').src = './assets/tutor_sample_2.mov';
+    } else {
+      document.getElementById('videoCallVid').style.display = 'none';
+      document.getElementById('videoCallImg').style.display = 'block';
+      document.getElementById('videoCallImg').src = activeTutorImg;
+    }
+    document.getElementById('preCallImg').src = activeTutorImg;
+    document.getElementById('preCallName').textContent = name;
+    document.getElementById('callStatusText').textContent = `AI 튜터 · ${name}`;
+    
+    // Reset overlay state
+    document.getElementById('preCallOverlay').style.display = 'flex';
+    document.getElementById('transcriptArea').style.display = 'none';
+    document.getElementById('callStatusDot').style.display = 'none';
+    document.getElementById('preCallControls').style.display = 'flex';
+    document.getElementById('transcriptLines').innerHTML = '';
+    
+    showScreen('video-call');
+  }
+}
+
+function startCall() {
+  state.callActive=true; state.callSeconds=0; state.transcriptIdx=0;
+  state.currentTranscripts = activeTutorImg.includes('kpop_idol') ? fakeTranscriptsPremium : fakeTranscriptsBasic;
+  
+  if (activeCallType === 'video') {
+    document.getElementById('preCallOverlay').style.display='none';
+    document.getElementById('transcriptArea').style.display='block';
+    document.getElementById('callStatusDot').style.display='block';
+    document.getElementById('preCallControls').style.display='none';
+    document.getElementById('videoCallVid').play().catch(e => console.log('Play blocked', e));
+  } else {
+    document.getElementById('voiceCallPing').style.opacity = '0'; // Connected
+  }
+  
+  state.callTimerInterval = setInterval(()=>{
+    state.callSeconds++;
+    const m=String(Math.floor(state.callSeconds/60)).padStart(2,'0');
+    const s=String(state.callSeconds%60).padStart(2,'0');
+    
+    if (activeCallType === 'video') {
+      document.getElementById('callTimer').textContent=`${m}:${s}`;
+    } else {
+      document.getElementById('voiceCallTimer').textContent=`${m}:${s}`;
+    }
+  },1000);
+  state.transcriptInterval = setInterval(addTranscript, 3500);
+  setTimeout(addTranscript, 500);
+}
+
+function addTranscript() {
+  if(!state.callActive || state.transcriptIdx >= state.currentTranscripts.length) return;
+  const t = state.currentTranscripts[state.transcriptIdx];
+  const isMe = t.who === '나';
+  const container = document.getElementById('transcriptLines');
+  const line = document.createElement('div');
+  line.className = `p-3 rounded-2xl max-w-[85%] text-sm font-semibold shadow-sm ${isMe ? 'bg-[#5da870] text-white self-end rounded-br-sm' : 'bg-white text-gray-800 self-start rounded-bl-sm'}`;
+  
+  // Real tutor name instead of 'AI'
+  const speakerName = (t.who === 'AI') ? activeTutorName : t.who;
+  
+  line.innerHTML = `<div class="text-[10px] font-black opacity-70 mb-1">${speakerName}</div><div>${t.text}</div>`;
+  container.appendChild(line);
+  container.scrollTop = container.scrollHeight;
+  state.transcriptIdx++;
+  // Speaking animation for Voice/Video Call
+  if (activeCallType === 'video' && !isMe) {
+    if (!activeTutorImg.includes('kpop_idol')) {
+      const videoImg = document.getElementById('videoCallImg');
+      videoImg.classList.add('speaking');
+      setTimeout(() => { videoImg.classList.remove('speaking'); }, 2500);
+    }
+  } else if (activeCallType === 'voice' && !isMe) {
+    const voicePing = document.getElementById('voiceCallPing');
+    voicePing.style.opacity = '1';
+    setTimeout(() => { voicePing.style.opacity = '0'; }, 2500);
+  }
+}
+
+function endCall() {
+  state.callActive=false;
+  clearInterval(state.callTimerInterval);
+  clearInterval(state.transcriptInterval);
+  document.getElementById('transcriptLines').innerHTML='';
+  
+  const vid = document.getElementById('videoCallVid');
+  if(vid && vid.pause) vid.pause();
+  
+  showScreen('tutors');
+}
+
+function toggleMic() {
+  state.micOn=!state.micOn;
+  const btn=document.getElementById('micBtn');
+  btn.textContent=state.micOn?'🎙️':'🔇';
+  btn.style.background=state.micOn?'rgba(255,255,255,0.2)':'rgba(255,100,100,0.4)';
+}
+
+function toggleVoiceMic() {
+  state.micOn = !state.micOn;
+  const btn = document.getElementById('voiceMicBtn');
+  btn.innerHTML = state.micOn ? '🎙️' : '🔇';
+  btn.style.background = state.micOn ? 'rgba(255,255,255,0.2)' : 'rgba(255,100,100,0.4)';
+}
+
+function buildWeeklyChart() {
+  const days=['월','화','수','목','금','토','일'];
+  const vals=[45,80,60,100,75,90,50];
+  const max=Math.max(...vals);
+  const today=new Date().getDay();
+  const todayIdx=today===0?6:today-1;
+  const chart=document.getElementById('weeklyChart');
+  chart.innerHTML='';
+  days.forEach((d,i)=>{
+    const h=Math.round((vals[i]/max)*80);
+    const isToday=i===todayIdx;
+    const col=document.createElement('div');
+    col.className='flex flex-col items-center gap-1';
+    col.style.flex='1';
+    col.innerHTML=`<div style="width:100%;height:${h}px;background:${isToday?'#8ecf9c':'#c8e6c9'};border-radius:8px 8px 4px 4px;min-height:8px;box-shadow:${isToday?'0 3px 0 #5da870':'none'}"></div><span style="font-size:11px;font-weight:900;color:${isToday?'#5da870':'#bbb'}">${d}</span>`;
+    chart.appendChild(col);
+  });
+}
+function buildLeaderboard() {
+  const users=[
+    {rank:1,name:'박수진',xp:2340,emoji:'🥇',you:false},
+    {rank:2,name:'이민준',xp:1980,emoji:'🥈',you:false},
+    {rank:3,name:'최지은',xp:1720,emoji:'🥉',you:false},
+    {rank:4,name:'김야나',xp:1240,emoji:'4️⃣',you:true},
+    {rank:5,name:'정우성',xp:1100,emoji:'5️⃣',you:false},
+    {rank:6,name:'한다솜',xp:920, emoji:'6️⃣',you:false},
+  ];
+  document.getElementById('leaderboard').innerHTML=users.map(u=>`
+    <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0" style="background:${u.you?'#f0fdf4':'transparent'}">
+      <span class="text-xl w-8 text-center">${u.emoji}</span>
+      <div class="flex-1"><div class="font-black text-sm text-gray-800">${u.name}${u.you?' <span style="font-size:11px;background:#e8f5eb;color:#5da870;padding:2px 6px;border-radius:999px;">나</span>':''}</div></div>
+      <div class="font-black text-sm" style="color:${u.you?'#5da870':'#888'}">${u.xp.toLocaleString()} XP</div>
+    </div>
+  `).join('');
+}
+
+buildPathMap();
+buildWeeklyChart();
+buildLeaderboard();
+showScreen('home');
+
+// Live clock for status bar
+function updateClock() {
+  const el = document.getElementById('statusTime');
+  if (!el) return;
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  el.textContent = `${h}:${m}`;
+}
+updateClock();
+setInterval(updateClock, 10000);
+
+</script>
+</body>
+</html>
