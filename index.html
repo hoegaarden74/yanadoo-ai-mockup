@@ -73,10 +73,11 @@
       border-radius: 40px;
     }
     @media (max-width: 768px) {
-      body { background: #fff; align-items: stretch; justify-content: flex-start; overflow: hidden; margin: 0; padding: 0; height: 100dvh; width: 100vw; }
+      html, body { height: 100%; }
+      body { background: #fff; align-items: stretch; justify-content: flex-start; overflow: hidden; margin: 0; padding: 0; width: 100%; }
       .phone-frame { width: 100%; height: 100%; border-radius: 0; border: none; box-shadow: none; margin: 0; padding: 0; }
-      .phone-di { display: none; }
-      .phone-status-bar { display: none; }
+      .phone-di { display: none !important; }
+      .phone-status-bar { display: none !important; }
       .phone-inner { border-radius: 0; height: 100%; }
     }
     .screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
